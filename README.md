@@ -1,4 +1,4 @@
-# Tirfe-suk---app```html
+```html
 <!DOCTYPE html>
 <html lang="am">
 <head>
@@ -463,5 +463,719 @@
             <label style="font-size:0.85rem; color: var(--text-muted)">የሚከፈልበት የብር መጠን (ETB)፡</label>
             <input type="number" id="settlePayAmount" placeholder="ምሳሌ፡ 500.00">
         </div>
+        <div class="modal-footer">
+            <button class="btn-success" id="settleSubmitBtn">ክፍያውን ፈጽም</button>
+            <button class="btn-danger" onclick="closeActiveModal()">ተመለስ</button>
+        </div>
+    </div>
+
+    <!-- ከሳጥን ገንዘብ መውሰጃ ሞዳል (Drawer Modal) -->
+    <div id="drawerModal" class="modal-card hidden">
+        <div class="modal-header">
+            <h3>💸 ከሳጥን ገንዘብ መውሰጃ</h3>
+        </div>
+        <div class="modal-body">
+            <label style="font-size:0.85rem; color: var(--text-muted)">ገንዘቡ የተወሰደበት ምክንያት፡</label>
+            <input type="text" id="drawerReason" placeholder="ምሳሌ፡ ለዕቃ ግዢ፣ ለትርፍ ክፍፍል...">
+            <label style="font-size:0.85rem; color: var(--text-muted); margin-top:10px; display:block;">የብር መጠን (ETB)፡</label>
+            <input type="number" id="drawerAmount" placeholder="ምሳሌ፡ 5000">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-purple" onclick="saveDrawer()">ገንዘብ ወጪ መዝግብ</button>
+            <button class="btn-danger" onclick="closeActiveModal()">ተመለስ</button>
+        </div>
+    </div>
+
+    <!-- ፕሮፋይል ማስተካከያ ሞዳል (Edit Profile Modal) -->
+    <div id="editProfileModal" class="modal-card hidden">
+        <div class="modal-header">
+            <h3>✏️ የመግቢያ መረጃ መቀየሪያ</h3>
+        </div>
+        <div class="modal-body">
+            <label style="font-size:0.85rem; color: var(--text-muted)">የሱቅ ስም፡</label>
+            <input type="text" id="editShopName">
+            <label style="font-size:0.85rem; color: var(--text-muted); margin-top:10px; display:block;">የይለፍ ቃል (Password)፡</label>
+            <input type="text" id="editPassword">
+        </div>
+        <div class="modal-footer">
+            <button class="btn-success" onclick="saveProfileChanges()">ማስተካከያውን መዝግብ</button>
+            <button class="btn-danger" onclick="closeActiveModal()">ተመለስ</button>
+        </div>
+    </div>
+
+    <!-- የዕቃ መረጃ ማስተካከያ ሞዳል (Edit Inventory Item Modal) -->
+    <div id="editInventoryModal" class="modal-card hidden">
+        <div class="modal-header">
+            <h3>✏️ የዕቃ መረጃ ማስተካከያ</h3>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editItemIndex">
+            <label style="font-size:0.85rem; color: var(--text-muted)">የዕቃ ስም፡</label>
+            <input type="text" id="editItemName">
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                <div>
+                    <label style="font-size:0.85rem; color: var(--text-muted)">መግዣ ዋጋ (Cost)፡</label>
+                    <input type="number" id="editItemCost">
+                </div>
+                <div>
+                    <label style="font-size:0.85rem; color: var(--text-muted)">መሸጫ ዋጋ (Price)፡</label>
+                    <input type="number" id="editItemPrice">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px;">
+                <div>
+                    <label style="font-size:0.85rem; color: var(--text-muted)">ጠቅላላ ብዛት፡</label>
+                    <input type="number" id="editItemQty">
+                </div>
+                <div>
+                    <label style="font-size:0.85rem; color: var(--text-muted)">የተሸጠው መጠን፡</label>
+                    <input type="number" id="editItemSold" readonly style="background: rgba(255,255,255,0.05);">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-success" onclick="saveInventoryChanges()">አሻሽል</button>
+            <button class="btn-danger" onclick="closeActiveModal()">ተመለስ</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Firebase ማስጀመሪያ
+    const firebaseConfig = {
+        databaseURL: "https://tirfe-app-v2-300c2-default-rtdb.firebaseio.com/" 
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let localDB = { tenants: {} };
+    let currentTenant = null;
+    let currentFontSize = 14;
+
+    // የቀጥታ ሰዓት እና ቀን መቆጣጠሪያ
+    setInterval(() => {
+        const now = new Date();
+        const optionsDate = { year: 'numeric', month: 'long', day: 'numeric' };
+        const formattedDate = now.toLocaleDateString('am-ET', optionsDate);
+        
+        const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+        const formattedTime = now.toLocaleTimeString('am-ET', optionsTime);
+        
+        const mDate = document.getElementById('metaDate');
+        const mTime = document.getElementById('metaTime');
+        if (mDate) mDate.innerText = formattedDate;
+        if (mTime) mTime.innerText = formattedTime;
+    }, 1000);
+
+    // 2. የሪልታይም ዳታቤዝ ክትትል (Realtime Database listener)
+    db.ref('tirfe_system').on('value', (snapshot) => {
+        if(snapshot.exists()) {
+            localDB = snapshot.val();
+            if(!localDB.tenants) localDB.tenants = {};
+            
+            if(currentTenant) {
+                let checkTenant = localDB.tenants[currentTenant.username];
+                if(!checkTenant) {
+                    showCustomAlert("❌ የይዞታ መጥፋት", "ይህ አካውንት በባለቤቱ ተሰርዟል!", () => {
+                        logout();
+                    });
+                    return;
+                }
+                if(checkTenant.status === "blocked") {
+                    showCustomAlert("🔒 የኪራይ ማብቂያ", "የኪራይ ጊዜዎ አብቅቷል! እባክዎ ባለቤቱን ያነጋግሩ።", () => {
+                        logout();
+                    });
+                    return;
+                }
+                currentTenant = checkTenant;
+                loadTenantApp();
+            }
+            if(!document.getElementById('adminPage').classList.contains('hidden')) {
+                renderAdminPanel();
+            }
+        } else {
+            localDB = { tenants: {} };
+        }
+    });
+
+    function pushToFirebase() {
+        db.ref('tirfe_system').set(localDB);
+    }
+
+    // የሞዳል መቆጣጠሪያዎች (Custom Modal handlers)
+    function openModalContainer() {
+        document.getElementById('modalOverlay').classList.remove('hidden');
+    }
+
+    function closeActiveModal() {
+        document.getElementById('modalOverlay').classList.add('hidden');
+        const modals = document.querySelectorAll('.modal-card');
+        modals.forEach(m => m.classList.add('hidden'));
+    }
+
+    function showCustomAlert(title, message, callback) {
+        document.getElementById('alertTitle').innerText = title;
+        document.getElementById('alertMessage').innerText = message;
+        
+        openModalContainer();
+        document.getElementById('alertModal').classList.remove('hidden');
+        
+        const okBtn = document.querySelector('#alertModal .btn-primary');
+        okBtn.onclick = function() {
+            closeActiveModal();
+            if(callback) callback();
+        };
+    }
+
+    function showCustomConfirm(title, message, onConfirm) {
+        document.getElementById('confirmTitle').innerText = title;
+        document.getElementById('confirmMessage').innerText = message;
+        
+        openModalContainer();
+        document.getElementById('confirmModal').classList.remove('hidden');
+        
+        const yesBtn = document.getElementById('confirmYesBtn');
+        yesBtn.onclick = function() {
+            closeActiveModal();
+            if(onConfirm) onConfirm();
+        };
+    }
+
+    // የመግቢያ ሲስተም (Login)
+    function handleLogin() {
+        let user = document.getElementById('loginUser').value.trim();
+        let pass = document.getElementById('loginPass').value.trim();
+        let error = document.getElementById('loginError');
+
+        if(user === "admin" && pass === "admin123") {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('adminPage').classList.remove('hidden');
+            renderAdminPanel();
+            return;
+        }
+
+        if (!localDB.tenants) {
+            error.innerText = "❌ ምንም የተመዘገበ ተከራይ የለም!";
+            return;
+        }
+
+        let tenant = localDB.tenants[user];
+        if(tenant && String(tenant.password).trim() === pass) {
+            if(tenant.status === "blocked") {
+                error.innerText = "🔒 ኪራይዎ በባለቤቱ ታግዷል!";
+                return;
+            }
+            currentTenant = tenant;
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('appPage').classList.remove('hidden');
+            document.getElementById('shopTitle').innerText = tenant.shopName + " - መቆጣጠሪያ";
+            
+            document.getElementById('metaStaff').innerText = tenant.username;
+            updateProfileSectionUI();
+            loadTenantApp();
+        } else {
+            error.innerText = "❌ የተጠቃሚ ስም ወይም የይለፍ ቃል ስህተት ነው!";
+        }
+    }
+
+    function updateProfileSectionUI() {
+        if(currentTenant) {
+            document.getElementById('profShopName').innerText = currentTenant.shopName;
+            document.getElementById('profUsername').innerText = currentTenant.username;
+            document.getElementById('profPassword').innerText = currentTenant.password;
+        }
+    }
+
+    // የፅሁፍ መጠን ማስተካከያ (Zoom)
+    function adjustFontSize(value) {
+        currentFontSize += value;
+        if(currentFontSize < 11) currentFontSize = 11;
+        if(currentFontSize > 22) currentFontSize = 22;
+        document.documentElement.style.setProperty('--base-font-size', currentFontSize + 'px');
+    }
+
+    function resetFontSize() {
+        currentFontSize = 14;
+        document.documentElement.style.setProperty('--base-font-size', '14px');
+    }
+
+    // የቀለም ገጽታ መቀየሪያ (Theme selector)
+    function changeTheme(themeName) {
+        document.body.className = '';
+        document.body.classList.add('theme-' + themeName);
+    }
+
+    // የባለቤት ስራዎች (Admin/Owner control panel)
+    function registerTenant() {
+        let shop = document.getElementById('newShopName').value.trim();
+        let user = document.getElementById('newUsername').value.trim().toLowerCase(); 
+        let pass = document.getElementById('newPassword').value.trim();
+
+        if(!shop || !user || !pass) { 
+            showCustomAlert("⚠️ ስህተት", "እባክዎ ሁሉንም መረጃዎች ይሙሉ!"); 
+            return; 
+        }
+        if(localDB.tenants && localDB.tenants[user]) { 
+            showCustomAlert("⚠️ ስህተት", "ይህ የተጠቃሚ ስም ቀድሞ ተወስዷል!"); 
+            return; 
+        }
+
+        if(!localDB.tenants) localDB.tenants = {};
+
+        localDB.tenants[user] = {
+            shopName: shop, username: user, password: pass, status: "active",
+            data: { capital: 0, dailyProfit: 0, monthlyProfit: 0, drawerAmt: 0, inventory: [], expenses: [], debts: [], drawerLog: [] }
+        };
+        
+        pushToFirebase();
+        showCustomAlert("✅ ስኬት", "ተከራይ በስኬት ተመዝግቧል!");
+        
+        document.getElementById('newShopName').value = '';
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        renderAdminPanel();
+    }
+
+    function toggleStatus(user) {
+        localDB.tenants[user].status = localDB.tenants[user].status === "active" ? "blocked" : "active";
+        pushToFirebase();
+    }
+
+    function deleteTenant(user) {
+        showCustomConfirm(
+            "⚠️ እርግጠኛ ነዎት?", 
+            `"${localDB.tenants[user].shopName}" የተባለውን ተከራይና ጠቅላላ ዳታውን ሙሉ በሙሉ ማጥፋት ይፈልጋሉ?`,
+            () => {
+                delete localDB.tenants[user];
+                pushToFirebase();
+                showCustomAlert("🧹 ስኬት", "ተከራዩ ሙሉ በሙሉ ተሰርዟል!");
+                renderAdminPanel();
+            }
+        );
+    }
+
+    function renderAdminPanel() {
+        let tbody = document.getElementById('tenantTableBody');
+        tbody.innerHTML = '';
+        if(!localDB.tenants) return;
+
+        Object.keys(localDB.tenants).forEach(key => {
+            let t = localDB.tenants[key];
+            let badge = t.status === 'active' ? '<span class="status-badge status-active">ስራ ላይ</span>' : '<span class="status-badge status-blocked">የታገደ</span>';
+            let btnText = t.status === 'active' ? 'Block' : 'Unblock';
+            let btnClass = t.status === 'active' ? 'btn-warning' : 'btn-success';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${t.shopName}</b></td>
+                    <td>${t.username}</td>
+                    <td>${t.password}</td>
+                    <td>${badge}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="${btnClass} btn-sm" onclick="toggleStatus('${t.username}')">${btnText}</button>
+                            <button class="btn-danger btn-sm" onclick="deleteTenant('${t.username}')">Delete</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // የተከራይ መተግበሪያ ዋና ተግባራት
+    function loadTenantApp() {
+        let d = currentTenant.data;
+        if(!d) {
+            d = { capital: 0, dailyProfit: 0, monthlyProfit: 0, drawerAmt: 0, inventory: [], expenses: [], debts: [], drawerLog: [] };
+            currentTenant.data = d;
+        }
+        if(!d.inventory) d.inventory = [];
+        if(!d.expenses) d.expenses = [];
+        if(!d.debts) d.debts = [];
+        if(!d.drawerLog) d.drawerLog = [];
+
+        document.getElementById('dispCapital').innerText = Number(d.capital).toFixed(2) + " ETB";
+        document.getElementById('dispDailyProfit').innerText = Number(d.dailyProfit).toFixed(2) + " ETB";
+        document.getElementById('dispMonthlyProfit').innerText = Number(d.monthlyProfit).toFixed(2) + " ETB";
+        document.getElementById('dispDrawer').innerText = Number(d.drawerAmt).toFixed(2) + " ETB";
+
+        renderInventoryTable();
+        renderDrawerTable();
+        renderDebtTable();
+    }
+
+    function focusInventoryInput() {
+        document.getElementById('itemName').focus();
+    }
+
+    function addItem() {
+        let name = document.getElementById('itemName').value.trim();
+        let cost = parseFloat(document.getElementById('itemCost').value) || 0;
+        let price = parseFloat(document.getElementById('itemPrice').value) || 0;
+        let qty = parseInt(document.getElementById('itemQty').value) || 0;
+
+        if(!name || cost <= 0 || price <= 0 || qty <= 0) { 
+            showCustomAlert("⚠️ ስህተት", "እባክዎ ሁሉንም የዕቃ መረጃዎች በትክክል ያስገቡ!"); 
+            return; 
+        }
+
+        if(!currentTenant.data.inventory) currentTenant.data.inventory = [];
+        currentTenant.data.inventory.push({ name, cost, price, qty, sold: 0, profit: 0 });
+        
+        recalculateCapital();
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+
+        document.getElementById('itemName').value = '';
+        document.getElementById('itemCost').value = '';
+        document.getElementById('itemPrice').value = '';
+        document.getElementById('itemQty').value = '';
+        showCustomAlert("📦 ስኬት", "ዕቃው በተሳካ ሁኔታ ተመዝግቧል!");
+    }
+
+    function renderInventoryTable() {
+        let tbody = document.getElementById('inventoryTable');
+        tbody.innerHTML = '';
+        let inv = currentTenant.data.inventory || [];
+        let searchTerm = document.getElementById('inventorySearch').value.toLowerCase().trim();
+
+        inv.forEach((i, idx) => {
+            if(searchTerm && !i.name.toLowerCase().includes(searchTerm)) {
+                return; // ፍለጋውን ካላለፈ መዝለል
+            }
+            let remaining = i.qty - i.sold;
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${i.name}</b></td>
+                    <td>${i.cost.toFixed(2)}</td>
+                    <td>${i.price.toFixed(2)}</td>
+                    <td>${i.qty}</td>
+                    <td>
+                        <button class="btn-success btn-sm" style="margin-right:8px;" onclick="sellItem(${idx})">➕ 1 ሽጥ</button> 
+                        <b>${i.sold}</b>
+                    </td>
+                    <td>${remaining}</td>
+                    <td style="color:var(--success); font-weight:bold;">${i.profit.toFixed(2)}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn-primary btn-sm" onclick="openEditInventoryModal(${idx})">✏️ አሻሽል</button>
+                            <button class="btn-danger btn-sm" onclick="deleteInventoryItem(${idx})">🗑️ ሰርዝ</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function sellItem(idx) {
+        let item = currentTenant.data.inventory[idx];
+        if((item.qty - item.sold) <= 0) { 
+            showCustomAlert("⚠️ ክምችት አልቋል", "ይህ ዕቃ በሱቁ ውስጥ አልቋል!"); 
+            return; 
+        }
+        
+        item.sold += 1;
+        let netProfit = item.price - item.cost;
+        item.profit += netProfit;
+        
+        currentTenant.data.dailyProfit += netProfit;
+        currentTenant.data.monthlyProfit += netProfit;
+        
+        recalculateCapital();
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+    }
+
+    function deleteInventoryItem(idx) {
+        showCustomConfirm(
+            "⚠️ ዕቃ ለመሰረዝ", 
+            `የመረጡትን "${currentTenant.data.inventory[idx].name}" ሙሉ በሙሉ መሰረዝ ይፈልጋሉ?`, 
+            () => {
+                currentTenant.data.inventory.splice(idx, 1);
+                recalculateCapital();
+                localDB.tenants[currentTenant.username] = currentTenant;
+                pushToFirebase();
+                showCustomAlert("🧹 ስኬት", "ዕቃው ተሰርዟል!");
+            }
+        );
+    }
+
+    function openEditInventoryModal(idx) {
+        let item = currentTenant.data.inventory[idx];
+        document.getElementById('editItemIndex').value = idx;
+        document.getElementById('editItemName').value = item.name;
+        document.getElementById('editItemCost').value = item.cost;
+        document.getElementById('editItemPrice').value = item.price;
+        document.getElementById('editItemQty').value = item.qty;
+        document.getElementById('editItemSold').value = item.sold;
+
+        openModalContainer();
+        document.getElementById('editInventoryModal').classList.remove('hidden');
+    }
+
+    function saveInventoryChanges() {
+        let idx = parseInt(document.getElementById('editItemIndex').value);
+        let name = document.getElementById('editItemName').value.trim();
+        let cost = parseFloat(document.getElementById('editItemCost').value) || 0;
+        let price = parseFloat(document.getElementById('editItemPrice').value) || 0;
+        let qty = parseInt(document.getElementById('editItemQty').value) || 0;
+
+        if(!name || cost <= 0 || price <= 0 || qty < 0) {
+            showCustomAlert("⚠️ ስህተት", "እባክዎ የተሻሻሉትን መረጃዎች በትክክል ያስገቡ!");
+            return;
+        }
+
+        let item = currentTenant.data.inventory[idx];
+        item.name = name;
+        item.cost = cost;
+        item.price = price;
+        item.qty = qty;
+
+        // የዕቃ ትርፍ ድምር ማስተካከያ
+        item.profit = (price - cost) * item.sold;
+
+        recalculateDailyAndMonthlyProfit();
+        recalculateCapital();
+        
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+        closeActiveModal();
+        showCustomAlert("✅ ስኬት", "የዕቃ መረጃው ተስተካክሏል!");
+    }
+
+    function recalculateDailyAndMonthlyProfit() {
+        let inv = currentTenant.data.inventory || [];
+        let exp = currentTenant.data.expenses || [];
+        let totalProfit = 0;
+        inv.forEach(i => { totalProfit += i.profit; });
+        
+        let totalExpenses = 0;
+        exp.forEach(e => { totalExpenses += e.amt; });
+
+        currentTenant.data.dailyProfit = totalProfit - totalExpenses; 
+        currentTenant.data.monthlyProfit = totalProfit - totalExpenses;
+    }
+
+    function recalculateCapital() {
+        let inv = currentTenant.data.inventory || [];
+        let totalAsset = 0;
+        inv.forEach(i => { totalAsset += (i.qty - i.sold) * i.cost; });
+        currentTenant.data.capital = totalAsset + currentTenant.data.monthlyProfit;
+    }
+
+    // የወጪዎች አስተዳደር
+    function openExpenseModal() {
+        document.getElementById('expenseReason').value = '';
+        document.getElementById('expenseAmount').value = '';
+        openModalContainer();
+        document.getElementById('expenseModal').classList.remove('hidden');
+    }
+
+    function saveExpense() {
+        let reason = document.getElementById('expenseReason').value.trim();
+        let amt = parseFloat(document.getElementById('expenseAmount').value) || 0;
+
+        if(!reason || amt <= 0) {
+            showCustomAlert("⚠️ ስህተት", "እባክዎ ትክክለኛ የወጪ ምክንያት እና የብር መጠን ያስገቡ!");
+            return;
+        }
+
+        currentTenant.data.dailyProfit -= amt; 
+        currentTenant.data.monthlyProfit -= amt; 
+        currentTenant.data.capital -= amt;
+        
+        if(!currentTenant.data.expenses) currentTenant.data.expenses = [];
+        currentTenant.data.expenses.push({ reason, amt }); 
+        
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+        closeActiveModal();
+        showCustomAlert("📉 ስኬት", "ወጪው ተመዝግቧል። ትርፍ እና ካፒታል ቀንሷል!");
+    }
+
+    // የዕዳዎች አስተዳደር
+    function openDebtModal() {
+        document.getElementById('debtName').value = '';
+        document.getElementById('debtDetail').value = '';
+        document.getElementById('debtAmount').value = '';
+        openModalContainer();
+        document.getElementById('debtModal').classList.remove('hidden');
+    }
+
+    function saveDebt() {
+        let name = document.getElementById('debtName').value.trim();
+        let detail = document.getElementById('debtDetail').value.trim();
+        let amt = parseFloat(document.getElementById('debtAmount').value) || 0;
+
+        if(!name || amt <= 0) {
+            showCustomAlert("⚠️ ስህተት", "እባክዎ የተበዳሪ ስም እና ትክክለኛ የብር መጠን ያስገቡ!");
+            return;
+        }
+
+        if(!currentTenant.data.debts) currentTenant.data.debts = [];
+        currentTenant.data.debts.push({ name, detail, amt }); 
+        
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+        closeActiveModal();
+        showCustomAlert("💳 ስኬት", "የደንበኛ ዕዳ በተሳካ ሁኔታ ተመዝግቧል!");
+    }
+
+    function renderDebtTable() {
+        let tbody = document.getElementById('debtTable'); 
+        tbody.innerHTML = '';
+        let debts = currentTenant.data.debts || [];
+        
+        debts.forEach((d, idx) => { 
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${d.name}</b></td>
+                    <td>${d.detail || '-'}</td>
+                    <td class="text-danger font-weight-bold">${d.amt.toFixed(2)}</td>
+                    <td>
+                        <div class="action-btns">
+                            <button class="btn-success btn-sm" onclick="openSettleDebtModal(${idx})">💵 ክፈል/ቀንስ</button>
+                            <button class="btn-danger btn-sm" onclick="deleteDebtItem(${idx})">🗑️ ሰርዝ</button>
+                        </div>
+                    </td>
+                </tr>
+            `; 
+        });
+    }
+
+    function openSettleDebtModal(idx) {
+        let debt = currentTenant.data.debts[idx];
+        document.getElementById('settleCustName').innerText = debt.name;
+        document.getElementById('settleCustAmt').innerText = debt.amt.toFixed(2) + " ETB";
+        document.getElementById('settlePayAmount').value = '';
+
+        openModalContainer();
+        document.getElementById('settleDebtModal').classList.remove('hidden');
+
+        document.getElementById('settleSubmitBtn').onclick = function() {
+            let payAmt = parseFloat(document.getElementById('settlePayAmount').value) || 0;
+            if(payAmt <= 0 || payAmt > debt.amt) {
+                showCustomAlert("⚠️ ስህተት", "እባክዎ በትክክል ካለባቸው ዕዳ የማይበልጥ የክፍያ መጠን ያስገቡ!");
+                return;
+            }
+
+            debt.amt -= payAmt;
+            
+            // የከፈለውን ገንዘብ ሱቁ የተጣራ ትርፍ ላይ መደመር
+            currentTenant.data.dailyProfit += payAmt;
+            currentTenant.data.monthlyProfit += payAmt;
+            recalculateCapital();
+
+            if(debt.amt <= 0) {
+                currentTenant.data.debts.splice(idx, 1);
+                showCustomAlert("🎉 ሙሉ በሙሉ ተከፈለ", "ደንበኛው ዕዳውን ሙሉ በሙሉ ጨርሷል!");
+            } else {
+                showCustomAlert("✅ ዕዳ ተቀንሷል", `ደንበኛው ${payAmt.toFixed(2)} ETB ከፍሏል። ቀሪ ዕዳ፡ ${debt.amt.toFixed(2)} ETB`);
+            }
+
+            localDB.tenants[currentTenant.username] = currentTenant;
+            pushToFirebase();
+            closeActiveModal();
+        };
+    }
+
+    function deleteDebtItem(idx) {
+        showCustomConfirm(
+            "⚠️ ዕዳ ለመሰረዝ", 
+            "የመረጡትን የተበዳሪ መዝገብ ያለክፍያ ሙሉ በሙሉ መሰረዝ ይፈልጋሉ?", 
+            () => {
+                currentTenant.data.debts.splice(idx, 1);
+                localDB.tenants[currentTenant.username] = currentTenant;
+                pushToFirebase();
+                showCustomAlert("🧹 ስኬት", "የተበዳሪው መዝገብ ተሰርዟል!");
+            }
+        );
+    }
+
+    // ከሳጥን ገንዘብ ማውጫ
+    function openDrawerModal() {
+        document.getElementById('drawerReason').value = '';
+        document.getElementById('drawerAmount').value = '';
+        openModalContainer();
+        document.getElementById('drawerModal').classList.remove('hidden');
+    }
+
+    function saveDrawer() {
+        let reason = document.getElementById('drawerReason').value.trim();
+        let amt = parseFloat(document.getElementById('drawerAmount').value) || 0;
+
+        if(!reason || amt <= 0) {
+            showCustomAlert("⚠️ ስህተት", "እባክዎ የተወሰደበትን ምክንያት እና የብር መጠን ያስገቡ!");
+            return;
+        }
+
+        currentTenant.data.drawerAmt += amt;
+        if(!currentTenant.data.drawerLog) currentTenant.data.drawerLog = [];
+        currentTenant.data.drawerLog.push({ reason, amt, status: 'ወጣ' }); 
+        
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+        closeActiveModal();
+        showCustomAlert("💸 ስኬት", "ከሳጥን የወጣው ገንዘብ በተሳካ ሁኔታ ተመዝግቧል!");
+    }
+
+    function renderDrawerTable() {
+        let tbody = document.getElementById('drawerTable'); 
+        tbody.innerHTML = '';
+        let logs = currentTenant.data.drawerLog || [];
+        logs.forEach(l => { 
+            tbody.innerHTML += `
+                <tr>
+                    <td>${l.reason}</td>
+                    <td class="text-purple font-weight-bold">${l.amt.toFixed(2)} ETB</td>
+                    <td><span class="status-badge status-blocked">${l.status}</span></td>
+                </tr>
+            `; 
+        });
+    }
+
+    // የፕሮፋይል መረጃ ማሻሻያ
+    function openEditProfileModal() {
+        document.getElementById('editShopName').value = currentTenant.shopName;
+        document.getElementById('editPassword').value = currentTenant.password;
+        
+        openModalContainer();
+        document.getElementById('editProfileModal').classList.remove('hidden');
+    }
+
+    function saveProfileChanges() {
+        let shop = document.getElementById('editShopName').value.trim();
+        let pass = document.getElementById('editPassword').value.trim();
+
+        if(!shop || !pass) {
+            showCustomAlert("⚠️ ስህተት", "እባክዎ ሁሉንም መረጃዎች ይሙሉ!");
+            return;
+        }
+
+        currentTenant.shopName = shop;
+        currentTenant.password = pass;
+
+        document.getElementById('shopTitle').innerText = shop + " - መቆጣጠሪያ";
+        updateProfileSectionUI();
+
+        localDB.tenants[currentTenant.username] = currentTenant;
+        pushToFirebase();
+        closeActiveModal();
+        showCustomAlert("✅ ስኬት", "የእርስዎ መገለጫ መረጃ ተስተካክሏል!");
+    }
+
+    // ከሲስተም መውጫ (Logout)
+    function logout() {
+        currentTenant = null;
+        resetFontSize();
+        document.getElementById('loginUser').value = '';
+        document.getElementById('loginPass').value = '';
+        document.getElementById('adminPage').classList.add('hidden');
+        document.getElementById('appPage').classList.add('hidden');
+        document.getElementById('loginPage').classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
 
 ```
